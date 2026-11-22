@@ -152,6 +152,18 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
           filter: ["==", ["get", "id"], live.current.selectedId ?? ""],
           paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": pal.marker, "circle-stroke-width": 2.5 },
         });
+        // The selected place's label is its own top layer: it is placed first, ignores collisions with
+        // other labels (allow-overlap) and displaces neighbors instead of being hidden by them.
+        m.addLayer({
+          id: "selected-label", type: "symbol", source: "places",
+          filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "id"], live.current.selectedId ?? ""]],
+          layout: {
+            "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": 14,
+            "text-offset": [0, 1.4], "text-anchor": "top",
+            "text-allow-overlap": true, "text-ignore-placement": false, "symbol-sort-key": 0,
+          },
+          paint: { "text-color": pal.marker, "text-halo-color": pal.ring, "text-halo-width": 2 },
+        });
       };
       m.on("style.load", addLayers);
       if (m.isStyleLoaded()) addLayers();
@@ -186,6 +198,7 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
   useEffect(() => {
     const m = map.current;
     if (m?.getLayer("selected")) m.setFilter("selected", ["==", ["get", "id"], selectedId ?? ""]);
+    if (m?.getLayer("selected-label")) m.setFilter("selected-label", ["all", ["!", ["has", "point_count"]], ["==", ["get", "id"], selectedId ?? ""]]);
   }, [selectedId]);
 
   useEffect(() => {
