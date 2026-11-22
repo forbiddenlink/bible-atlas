@@ -23,6 +23,9 @@ resolve it.
   (tentative or disputed). The legend explains it.
 - Side panel (bottom sheet on phones): name, alternate spellings, confidence, other candidate sites, people born
   or died there, and passages grouped by book.
+- Shareable links: selecting a place sets `?place=<id>`; opening that URL restores it, with per-place page title and Open Graph tags.
+- Places that share a name get a short disambiguator (the top modern site, or "site 1 of 2"); the plain name is shown everywhere else.
+- Zoom-gated markers: firm places always, probable from zoom 8, tentative from zoom 9.2.
 - Search by place name or by passage ("Bethel", "Gen 28", "1 Sam 3:1"); full keyboard support.
 - Light and dark theme, parchment palette, serif headings.
 - `/about` page with full source attributions.

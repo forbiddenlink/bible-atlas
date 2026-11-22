@@ -2,19 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { groupVerses } from "@/lib/bible";
-import { TIER_LABEL, tierOf, type Person, type Place } from "@/lib/types";
+import { TIER_LABEL, baseName, tierOf, type Person, type Place } from "@/lib/types";
 import { Swatch } from "./Legend";
 
 const era = (y?: number) => (y === undefined ? "" : y < 0 ? `${-y} BC` : `AD ${y}`);
 
 export default function Panel({
-  place, people, onClose, onPick, featured,
+  place, people, onClose, onPick, featured, hints,
 }: {
   place: Place | null;
   people: Person[];
   onClose: () => void;
   onPick: (id: string) => void;
   featured: Place[];
+  hints: Record<string, string>;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [all, setAll] = useState(false);
@@ -31,7 +32,7 @@ export default function Panel({
           {featured.map((p) => (
             <li key={p.id}>
               <button onClick={() => onPick(p.id)} className="flex w-full items-baseline justify-between px-1 py-2.5 text-left hover:bg-paper">
-                <span className="font-serif text-lg">{p.n}</span>
+                <span className="font-serif text-lg">{baseName(p.n)}{hints[p.id] && <span className="ml-1.5 font-sans text-xs text-muted">({hints[p.id]})</span>}</span>
                 <span className="text-xs text-muted">{p.v.length} verses</span>
               </button>
             </li>
@@ -51,9 +52,10 @@ export default function Panel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted">{place.t}</p>
-          <h2 id="place-h" ref={heading} tabIndex={-1} className="font-serif text-3xl font-semibold leading-tight outline-none">{place.n.replace(/ \d+$/, "")}{/ \d+$/.test(place.n) && <span className="ml-2 text-lg font-normal text-muted">{place.n.match(/\d+$/)?.[0]}</span>}</h2>
+          <h2 id="place-h" ref={heading} tabIndex={-1} className="font-serif text-3xl font-semibold leading-tight outline-none">{baseName(place.n)}</h2>
+          {hints[place.id] && <p className="mt-0.5 text-sm text-muted">{hints[place.id]}</p>}
         </div>
-        <button onClick={onClose} className="h-11 shrink-0 border border-rule px-3 text-sm hover:bg-paper" style={{ borderRadius: 2 }} aria-label={`Close ${place.n} details`}>Close</button>
+        <button onClick={onClose} className="h-11 shrink-0 border border-rule px-3 text-sm hover:bg-paper" style={{ borderRadius: 2 }} aria-label={`Close ${baseName(place.n)} details`}>Close</button>
       </div>
 
       {place.alt && (

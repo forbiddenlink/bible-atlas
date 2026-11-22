@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Map as MlMap, setWorkerUrl, NavigationControl, AttributionControl, type StyleSpecification, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Place } from "@/lib/types";
+import { baseName, type Place } from "@/lib/types";
 
 const STYLE_URL = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
 
@@ -18,6 +18,10 @@ function patchStyle(style: StyleSpecification, theme: Theme): StyleSpecification
   const p = PALETTE[theme];
   const layers = style.layers.map((l) => {
     const id = l.id;
+    if (/^(label|place)_(village|town|city)/.test(id)) {
+      // modern town names compete with the ancient ones
+      return { ...l, layout: { ...(l.layout ?? {}), visibility: "none" as const } };
+    }
     if (/^(highway|railway|aeroway|tunnel|bridge|road|building|airport|poi|label_other|place_other|place_suburb)/.test(id)) {
       return { ...l, layout: { ...(l.layout ?? {}), visibility: "none" as const } };
     }
@@ -26,7 +30,10 @@ function patchStyle(style: StyleSpecification, theme: Theme): StyleSpecification
     else if (l.type === "fill" && /water/.test(id)) paint["fill-color"] = p.water;
     else if (l.type === "fill" && !/ice|glacier/.test(id)) paint["fill-color"] = p.land;
     else if (l.type === "line" && /waterway/.test(id)) paint["line-color"] = p.water;
-    else if (l.type === "symbol") { paint["text-color"] = p.label; paint["text-halo-color"] = p.halo; paint["text-halo-width"] = 1.2; }
+    else if (l.type === "symbol") {
+      paint["text-color"] = p.label; paint["text-halo-color"] = p.halo; paint["text-halo-width"] = 1.2;
+      if (/^(label|place)_(state|country)/.test(id)) paint["text-opacity"] = 0.25;
+    }
     return { ...l, paint } as typeof l;
   });
   return { ...style, layers };
@@ -46,7 +53,7 @@ function toGeoJSON(places: Place[]) {
     type: "FeatureCollection" as const,
     features: places.map((p) => ({
       type: "Feature" as const,
-      properties: { id: p.id, name: p.n, tier: p.c >= 700 ? 2 : p.c >= 400 ? 1 : 0 },
+      properties: { id: p.id, name: baseName(p.n), tier: p.c >= 700 ? 2 : p.c >= 400 ? 1 : 0 },
       geometry: { type: "Point" as const, coordinates: p.ll },
     })),
   };
@@ -77,6 +84,7 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
       setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
       const style = await getStyle(live.current.theme);
       if (cancelled || !el.current) return;
+      const start = live.current.places.find((x) => x.id === live.current.selectedId);
       const m = new MlMap({
         container: el.current,
         style,
@@ -87,6 +95,7 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
         dragRotate: false,
       });
       map.current = m;
+      if (start) m.easeTo({ center: start.ll, zoom: 9.3, offset: [padRef.current.leftPad / 2, -padRef.current.bottomPad / 2], duration: 0 });
       m.touchZoomRotate.disableRotation();
       m.addControl(new NavigationControl({ showCompass: false }), "top-right");
       m.addControl(new AttributionControl({ compact: true }), "bottom-right");
@@ -94,7 +103,7 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
       const addLayers = () => {
         const pal = PALETTE[live.current.theme];
         if (m.getSource("places")) return;
-        m.addSource("places", { type: "geojson", data: toGeoJSON(live.current.places), cluster: true, clusterRadius: 38, clusterMaxZoom: 8 });
+        m.addSource("places", { type: "geojson", data: toGeoJSON(live.current.places), cluster: true, clusterRadius: 38, clusterMaxZoom: 9 });
         m.addLayer({
           id: "clusters", type: "circle", source: "places", filter: ["has", "point_count"],
           paint: { "circle-color": pal.land, "circle-stroke-color": pal.marker, "circle-stroke-width": 1.5, "circle-radius": ["step", ["get", "point_count"], 14, 10, 18, 50, 23] },
@@ -105,22 +114,28 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
           paint: { "text-color": pal.marker },
         });
         // Confidence: solid = firm, translucent = probable, hollow ring = tentative.
-        m.addLayer({
-          id: "places", type: "circle", source: "places", filter: ["!", ["has", "point_count"]],
-          paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 8],
-            "circle-color": pal.marker,
-            "circle-opacity": ["match", ["get", "tier"], 2, 1, 1, 0.55, 0.0],
-            "circle-stroke-color": pal.marker,
-            "circle-stroke-width": ["match", ["get", "tier"], 0, 1.75, 1, 1, 0.5],
-            "circle-stroke-opacity": ["match", ["get", "tier"], 2, 1, 1, 0.8, 0.9],
-          },
-        });
-        m.addLayer({
-          id: "place-labels", type: "symbol", source: "places", minzoom: 6.5, filter: ["!", ["has", "point_count"]],
-          layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true },
-          paint: { "text-color": pal.label, "text-halo-color": pal.halo, "text-halo-width": 1.4 },
-        });
+        // Zoom gating keeps the crowded hill country readable: firm places always, probable from z8, tentative from z9.2.
+        const tierLayers: [string, number, number][] = [["firm", 2, 0], ["probable", 1, 8], ["tentative", 0, 9.2]];
+        for (const [key, tier, minzoom] of tierLayers) {
+          m.addLayer({
+            id: `places-${key}`, type: "circle", source: "places", minzoom,
+            filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "tier"], tier]],
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 8],
+              "circle-color": pal.marker,
+              "circle-opacity": tier === 2 ? 1 : tier === 1 ? 0.55 : 0,
+              "circle-stroke-color": pal.marker,
+              "circle-stroke-width": tier === 0 ? 1.75 : tier === 1 ? 1 : 0.5,
+              "circle-stroke-opacity": tier === 2 ? 1 : tier === 1 ? 0.8 : 0.9,
+            },
+          });
+          m.addLayer({
+            id: `place-labels-${key}`, type: "symbol", source: "places", minzoom: Math.max(minzoom, 6.5),
+            filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "tier"], tier]],
+            layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Regular"], "text-size": 12, "text-offset": [0, 1.1], "text-anchor": "top", "text-optional": true },
+            paint: { "text-color": pal.label, "text-halo-color": pal.halo, "text-halo-width": 1.4 },
+          });
+        }
         m.addLayer({
           id: "selected", type: "circle", source: "places",
           filter: ["==", ["get", "id"], live.current.selectedId ?? ""],
@@ -137,11 +152,11 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
         const zoom = await src.getClusterExpansionZoom(f.properties.cluster_id as number);
         m.easeTo({ center: (f.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: zoom + 0.5 });
       });
-      m.on("click", "places", (e) => {
+      m.on("click", ["places-firm", "places-probable", "places-tentative"], (e) => {
         const id = e.features?.[0]?.properties?.id as string | undefined;
         if (id) live.current.onSelect(id);
       });
-      for (const l of ["clusters", "places"]) {
+      for (const l of ["clusters", "places-firm", "places-probable", "places-tentative"]) {
         m.on("mouseenter", l, () => (m.getCanvas().style.cursor = "pointer"));
         m.on("mouseleave", l, () => (m.getCanvas().style.cursor = ""));
       }

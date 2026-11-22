@@ -1,12 +1,12 @@
 "use client";
 
 import { useId, useMemo, useRef, useState } from "react";
-import type { Place } from "@/lib/types";
+import { baseName, type Place } from "@/lib/types";
 import { bookShort, matchesRef, parseRef } from "@/lib/bible";
 
 interface Result { place: Place; note?: string }
 
-export default function Search({ places, onPick }: { places: Place[]; onPick: (id: string) => void }) {
+export default function Search({ places, onPick, hints }: { places: Place[]; onPick: (id: string) => void; hints: Record<string, string> }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -29,7 +29,7 @@ export default function Search({ places, onPick }: { places: Place[]; onPick: (i
     }
     const low = t.toLowerCase();
     const score = (p: Place): number => {
-      const names = [p.n, ...(p.alt ?? [])].map((s) => s.toLowerCase());
+      const names = [baseName(p.n), ...(p.alt ?? [])].map((s) => s.toLowerCase());
       if (names.some((n) => n === low)) return 0;
       if (names.some((n) => n.startsWith(low))) return 1;
       if (names.some((n) => n.includes(low))) return 2;
@@ -95,7 +95,7 @@ export default function Search({ places, onPick }: { places: Place[]; onPick: (i
                 onMouseEnter={() => setActive(i)}
                 className={`flex cursor-pointer items-baseline justify-between gap-3 px-3 py-2.5 ${i === active ? "bg-accent text-accent-ink" : ""}`}
               >
-                <span className="font-serif text-base">{r.place.n}</span>
+                <span className="font-serif text-base">{baseName(r.place.n)}{hints[r.place.id] && <span className="ml-1.5 font-sans text-xs opacity-75">({hints[r.place.id]})</span>}</span>
                 <span className={`text-xs ${i === active ? "" : "text-muted"}`}>{r.note ?? r.place.t}</span>
               </li>
             ))}
