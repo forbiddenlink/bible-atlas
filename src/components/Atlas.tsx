@@ -12,7 +12,7 @@ const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => 
 
 export default function Atlas({ places, people, initialId = null }: { places: Place[]; people: Person[]; initialId?: string | null }) {
   const [selected, setSelected] = useState<string | null>(initialId);
-  const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
+  const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(initialId ? { id: initialId, nonce: 0 } : null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [wide, setWide] = useState(true);
 

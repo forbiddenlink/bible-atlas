@@ -59,6 +59,16 @@ function toGeoJSON(places: Place[]) {
   };
 }
 
+/** Center a place at zoom >= 10 (above every tier gate, so it is unclustered), clear of the panel. */
+function goTo(m: MlMap, places: Place[], id: string, pad: { bottomPad: number; leftPad: number }) {
+  const p = places.find((x) => x.id === id);
+  if (!p) return;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const opts = { center: p.ll, zoom: Math.max(m.getZoom(), 10), offset: [pad.leftPad / 2, -pad.bottomPad / 2] as [number, number] };
+  if (reduce) m.jumpTo({ center: opts.center, zoom: opts.zoom }), m.panBy([-opts.offset[0], -opts.offset[1]], { duration: 0 });
+  else m.easeTo({ ...opts, duration: 700 });
+}
+
 interface Props {
   places: Place[];
   selectedId: string | null;
@@ -73,8 +83,9 @@ interface Props {
 export default function MapView({ places, selectedId, theme, onSelect, focus, bottomPad, leftPad }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
-  const live = useRef({ places, selectedId, onSelect, theme });
-  live.current = { places, selectedId, onSelect, theme };
+  const live = useRef({ places, selectedId, onSelect, theme, focus });
+  live.current = { places, selectedId, onSelect, theme, focus };
+  const ready = useRef(false);
   const padRef = useRef({ bottomPad, leftPad });
   padRef.current = { bottomPad, leftPad };
 
@@ -84,7 +95,6 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
       setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
       const style = await getStyle(live.current.theme);
       if (cancelled || !el.current) return;
-      const start = live.current.places.find((x) => x.id === live.current.selectedId);
       const m = new MlMap({
         container: el.current,
         style,
@@ -95,7 +105,8 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
         dragRotate: false,
       });
       map.current = m;
-      if (start) m.easeTo({ center: start.ll, zoom: 9.3, offset: [padRef.current.leftPad / 2, -padRef.current.bottomPad / 2], duration: 0 });
+      // deep link: frame the selected place once the map is ready
+      m.once("load", () => { ready.current = true; const f = live.current.focus; if (f) goTo(m, live.current.places, f.id, padRef.current); });
       m.touchZoomRotate.disableRotation();
       m.addControl(new NavigationControl({ showCompass: false }), "top-right");
       m.addControl(new AttributionControl({ compact: true }), "bottom-right");
@@ -161,7 +172,7 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
         m.on("mouseleave", l, () => (m.getCanvas().style.cursor = ""));
       }
     })();
-    return () => { cancelled = true; map.current?.remove(); map.current = null; };
+    return () => { cancelled = true; ready.current = false; map.current?.remove(); map.current = null; };
   }, []);
 
   // theme switch: swap style (layers are re-added on style.load)
@@ -178,11 +189,9 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, bo
   }, [selectedId]);
 
   useEffect(() => {
-    if (!focus || !map.current) return;
-    const p = live.current.places.find((x) => x.id === focus.id);
-    if (!p) return;
-    const { bottomPad: b, leftPad: l } = padRef.current;
-    map.current.easeTo({ center: p.ll, zoom: Math.max(map.current.getZoom(), 9.3), offset: [l / 2, -b / 2], duration: 700 });
+    const m = map.current;
+    if (!focus || !m || !ready.current) return; // before load, the "load" handler above covers it
+    goTo(m, live.current.places, focus.id, padRef.current);
   }, [focus]);
 
   return <div className="absolute inset-0"><div ref={el} className="h-full w-full" role="application" aria-label="Map of biblical places. Use the search box or the list to choose a place." /></div>;
