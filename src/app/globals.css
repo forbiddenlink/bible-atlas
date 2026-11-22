@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f3ecdc;
+  --panel: #f8f2e4;
+  --ink: #2b2218;
+  --muted: #5f523f;
+  --rule: #cbbd9b;
+  --accent: #7a2e1f;
+  --accent-ink: #fff8ec;
+  --focus: #1d4f7a;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --paper: #1a1612;
+  --panel: #221d17;
+  --ink: #ece2cc;
+  --muted: #b3a78e;
+  --rule: #433a2c;
+  --accent: #e0a86a;
+  --accent-ink: #1a1612;
+  --focus: #8fc1ec;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.maplibregl-ctrl-attrib { font-size: 11px; }
+.maplibregl-ctrl-group { border-radius: 2px !important; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+[data-theme="dark"] .maplibregl-ctrl-group { background: var(--panel); }
+[data-theme="dark"] .maplibregl-ctrl-group button + button { border-top-color: var(--rule); }
+[data-theme="dark"] .maplibregl-ctrl-icon { filter: invert(1); }
+[data-theme="dark"] .maplibregl-ctrl-attrib { background: rgba(26, 22, 18, 0.8); color: var(--muted); }
+[data-theme="dark"] .maplibregl-ctrl-attrib a { color: var(--ink); }
+
+[data-theme="dark"] .maplibregl-ctrl-attrib.maplibregl-compact,
+[data-theme="dark"] .maplibregl-ctrl-attrib.maplibregl-compact-show { background: rgba(26, 22, 18, 0.85) !important; color: var(--ink) !important; }
+[data-theme="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
+[data-theme="dark"] .maplibregl-ctrl-attrib a { color: var(--ink) !important; }
