@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildHints, type Person, type Place } from "@/lib/types";
+import { PLACE_PARAM, resolvePlaceId, withPlace } from "@/lib/place-url";
 import Search from "./Search";
 import Panel from "./Panel";
 import Legend from "./Legend";
@@ -34,14 +35,32 @@ export default function Atlas({ places, people, initialId = null }: { places: Pl
 
   const hints = useMemo(() => buildHints(places), [places]);
 
-  // keep ?place=<id> in sync with the selection without adding history entries
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (selected) url.searchParams.set("place", selected); else url.searchParams.delete("place");
-    if (url.href !== window.location.href) history.replaceState(null, "", url);
-  }, [selected]);
+  const knownIds = useMemo(() => new Set(places.map((p) => p.id)), [places]);
+  const currentUrl = () => `${location.pathname}${location.search}${location.hash}`;
 
-  const pick = useCallback((id: string) => { setSelected(id); setFocus({ id, nonce: Date.now() }); }, []);
+  // Selecting or closing a place adds a history entry (so Back returns to the previous place);
+  // no reload happens because only the History API is touched.
+  const navigate = useCallback((id: string | null) => {
+    const next = withPlace(currentUrl(), id);
+    if (next !== currentUrl()) history.pushState(null, "", next);
+  }, []);
+
+  const pick = useCallback((id: string) => { setSelected(id); setFocus({ id, nonce: Date.now() }); navigate(id); }, [navigate]);
+  const close = useCallback(() => { setSelected(null); navigate(null); }, [navigate]);
+
+  // Back/forward: follow the URL. A bad slug in the URL is ignored.
+  useEffect(() => {
+    // Drop an unknown ?place= from the first URL without adding history.
+    if (!initialId && new URLSearchParams(location.search).has(PLACE_PARAM)) history.replaceState(null, "", withPlace(currentUrl(), null));
+    const onPop = () => {
+      const id = resolvePlaceId(new URLSearchParams(location.search).get(PLACE_PARAM), knownIds);
+      setSelected(id);
+      if (id) setFocus({ id, nonce: Date.now() });
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [initialId, knownIds]);
+
   const place = useMemo(() => places.find((p) => p.id === selected) ?? null, [places, selected]);
   const featured = useMemo(() => [...places].sort((a, b) => b.v.length - a.v.length).slice(0, 12), [places]);
 
@@ -57,14 +76,17 @@ export default function Atlas({ places, people, initialId = null }: { places: Pl
         </button>
       </header>
 
-      <main className="relative min-h-0">
-        <MapView places={places} selectedId={selected} theme={theme} onSelect={pick} focus={focus} bottomPad={wide ? 0 : 300} leftPad={wide ? 400 : 0} />
+      <main className="relative min-h-0 max-md:flex max-md:flex-col">
+        {/* On phones the map and the sheet stack instead of overlapping, so the map never sits under the panel. */}
+        <div className="relative min-h-0 flex-1 max-md:basis-0 md:absolute md:inset-0">
+          <MapView places={places} selectedId={selected} theme={theme} onSelect={pick} focus={focus} leftPad={wide ? 400 : 0} />
+        </div>
 
         <aside
           aria-label="Place details"
-          className="absolute z-10 overflow-y-auto border-rule bg-panel max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[42%] max-md:border-t md:bottom-0 md:left-0 md:top-0 md:w-[390px] md:border-r"
+          className="z-10 overflow-y-auto border-rule bg-panel max-md:max-h-[42%] max-md:shrink-0 max-md:border-t md:absolute md:bottom-0 md:left-0 md:top-0 md:w-[390px] md:border-r"
         >
-          <Panel place={place} people={people} onClose={() => setSelected(null)} onPick={pick} featured={featured} hints={hints} />
+          <Panel place={place} people={people} onClose={close} onPick={pick} featured={featured} hints={hints} />
         </aside>
 
         <div className="pointer-events-none absolute right-3 top-3 z-[5] hidden md:block md:top-28"><div className="pointer-events-auto"><Legend /></div></div>
