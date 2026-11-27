@@ -24,7 +24,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SP }): 
     description,
     alternates: { canonical: `/?place=${p.id}` },
     openGraph: { title, description, type: "website", url: `/?place=${p.id}`, siteName: "Bible Atlas" },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
