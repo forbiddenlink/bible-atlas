@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Map as MlMap, setWorkerUrl, NavigationControl, AttributionControl, type StyleSpecification, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { baseName, type Place } from "@/lib/types";
@@ -87,6 +87,7 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, le
   const ready = useRef(false);
   const padRef = useRef({ leftPad });
   padRef.current = { leftPad };
+  const [noMap, setNoMap] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,15 +95,23 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, le
       setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
       const style = await getStyle(live.current.theme);
       if (cancelled || !el.current) return;
-      const m = new MlMap({
-        container: el.current,
-        style,
-        center: [35.2, 31.8],
-        zoom: 5.2,
-        minZoom: 2,
-        attributionControl: false,
-        dragRotate: false,
-      });
+      let m: MlMap;
+      try {
+        m = new MlMap({
+          container: el.current,
+          style,
+          center: [35.2, 31.8],
+          zoom: 5.2,
+          minZoom: 2,
+          attributionControl: false,
+          dragRotate: false,
+        });
+      } catch {
+        // No WebGL2 (old GPU, disabled hardware acceleration, headless browser):
+        // keep the search and list usable and say why the map is missing.
+        if (!cancelled) setNoMap(true);
+        return;
+      }
       map.current = m;
       // deep link: frame the selected place once the map is ready
       m.once("load", () => { ready.current = true; const f = live.current.focus; if (f) goTo(m, live.current.places, f.id, padRef.current); });
@@ -206,5 +215,12 @@ export default function MapView({ places, selectedId, theme, onSelect, focus, le
     goTo(m, live.current.places, focus.id, padRef.current);
   }, [focus]);
 
+  if (noMap) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-paper p-6 text-center" style={{ paddingLeft: leftPad + 24 }}>
+        <p className="max-w-sm text-sm">The map needs WebGL2, which this browser does not support or has turned off. Search and the place list still work.</p>
+      </div>
+    );
+  }
   return <div className="absolute inset-0"><div ref={el} className="h-full w-full" role="application" aria-label="Map of biblical places. Use the search box or the list to choose a place." /></div>;
 }
