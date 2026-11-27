@@ -5,6 +5,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"),
   title: "Bible Atlas",
   description: "A free atlas of biblical places, the people tied to them, and the passages that name them.",
+  openGraph: {
+    type: "website",
+    siteName: "Bible Atlas",
+    title: "Bible Atlas",
+    description: "A free atlas of biblical places, the people tied to them, and the passages that name them.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bible Atlas",
+    description: "A free atlas of biblical places, the people tied to them, and the passages that name them.",
+  },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
