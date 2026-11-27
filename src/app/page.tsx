@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import Atlas from "@/components/Atlas";
 import { baseName, buildHints, TIER_LABEL, tierOf, type Person, type Place } from "@/lib/types";
 import placesJson from "../../public/data/places.json";
+import { resolvePlaceId } from "@/lib/place-url";
 import peopleJson from "../../public/data/people.json";
 
 const places = placesJson as Place[];
 const people = peopleJson as Person[];
 
 type SP = Promise<{ place?: string | string[] }>;
-const idOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+const knownIds = new Set(places.map((p) => p.id));
 
 export async function generateMetadata({ searchParams }: { searchParams: SP }): Promise<Metadata> {
-  const id = idOf((await searchParams).place);
+  const id = resolvePlaceId((await searchParams).place, knownIds);
   const p = id ? places.find((x) => x.id === id) : undefined;
   if (!p) return {};
   const hint = buildHints(places)[p.id];
@@ -28,7 +29,6 @@ export async function generateMetadata({ searchParams }: { searchParams: SP }): 
 }
 
 export default async function Page({ searchParams }: { searchParams: SP }) {
-  const id = idOf((await searchParams).place);
-  const initial = id && places.some((p) => p.id === id) ? id : null;
+  const initial = resolvePlaceId((await searchParams).place, knownIds);
   return <Atlas places={places} people={people} initialId={initial} />;
 }

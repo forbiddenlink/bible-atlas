@@ -8,6 +8,7 @@
     "start": "next start",
     "build:data": "tsx scripts/build-data.ts",
     "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.mjs\"",
     "predev": "node scripts/copy-maplibre.mjs",
     "prebuild": "node scripts/copy-maplibre.mjs",
     "screenshots": "node scripts/screenshots.mjs"

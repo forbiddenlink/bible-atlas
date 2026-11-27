@@ -60,12 +60,12 @@ function toGeoJSON(places: Place[]) {
 }
 
 /** Center a place at zoom >= 10 (above every tier gate, so it is unclustered), clear of the panel. */
-function goTo(m: MlMap, places: Place[], id: string, pad: { bottomPad: number; leftPad: number }) {
+function goTo(m: MlMap, places: Place[], id: string, pad: { leftPad: number }) {
   const p = places.find((x) => x.id === id);
   if (!p) return;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const opts = { center: p.ll, zoom: Math.max(m.getZoom(), 10), offset: [pad.leftPad / 2, -pad.bottomPad / 2] as [number, number] };
-  if (reduce) m.jumpTo({ center: opts.center, zoom: opts.zoom }), m.panBy([-opts.offset[0], -opts.offset[1]], { duration: 0 });
+  const opts = { center: p.ll, zoom: Math.max(m.getZoom(), 10), offset: [pad.leftPad / 2, 0] as [number, number] };
+  if (reduce) m.jumpTo({ center: opts.center, zoom: opts.zoom }), m.panBy([-opts.offset[0], 0], { duration: 0 });
   else m.easeTo({ ...opts, duration: 700 });
 }
 
@@ -75,19 +75,18 @@ interface Props {
   theme: Theme;
   onSelect: (id: string) => void;
   focus: { id: string; nonce: number } | null;
-  /** extra bottom padding (px) so the selection is not hidden behind a bottom sheet */
-  bottomPad: number;
+  /** extra left padding (px) so the selection is not hidden behind the side panel */
   leftPad: number;
 }
 
-export default function MapView({ places, selectedId, theme, onSelect, focus, bottomPad, leftPad }: Props) {
+export default function MapView({ places, selectedId, theme, onSelect, focus, leftPad }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const live = useRef({ places, selectedId, onSelect, theme, focus });
   live.current = { places, selectedId, onSelect, theme, focus };
   const ready = useRef(false);
-  const padRef = useRef({ bottomPad, leftPad });
-  padRef.current = { bottomPad, leftPad };
+  const padRef = useRef({ leftPad });
+  padRef.current = { leftPad };
 
   useEffect(() => {
     let cancelled = false;
