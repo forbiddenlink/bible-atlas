@@ -28,11 +28,5 @@
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
-  },
-  "pnpm": {
-    "overrides": {
-      "glob@13": ">=14.0.2 <15",
-      "minimatch@10": ">=11.0.1 <12"
-    }
   }
 }

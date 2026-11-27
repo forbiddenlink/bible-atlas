@@ -1,0 +1,15 @@
+packages:
+  - "."
+
+# pnpm 12 refuses to install while a build script is unclassified. Both stay
+# off, matching what pnpm 10 did by default: esbuild ships its binary as a
+# platform package, and @sentry/cli only fetches a CLI the build never runs.
+allowBuilds:
+  "@sentry/cli": false
+  esbuild: false
+
+# Dependency floors that close advisories in transitive packages. These moved
+# out of package.json's pnpm.overrides, which pnpm stopped reading in v10.
+overrides:
+  "glob@13": ">=14.0.2 <15"
+  "minimatch@10": ">=11.0.1 <12"
