@@ -68,7 +68,7 @@ export default function Atlas({ places, people, initialId = null }: { places: Pl
         </aside>
 
         <div className="pointer-events-none absolute right-3 top-3 z-[5] hidden md:block md:top-28"><div className="pointer-events-auto"><Legend /></div></div>
-        <div className="absolute right-3 top-3 z-[5] max-w-[220px] md:hidden"><LegendToggle /></div>
+        <div className="absolute left-3 top-3 z-[5] max-w-[220px] md:hidden"><LegendToggle /></div>
       </main>
 
       <footer className="z-20 flex flex-wrap items-center justify-between gap-x-4 border-t border-rule bg-panel px-4 py-1.5 text-xs text-muted">
@@ -84,7 +84,7 @@ export default function Atlas({ places, people, initialId = null }: { places: Pl
 function LegendToggle() {
   return (
     <details className="group">
-      <summary className="ml-auto flex h-11 w-fit cursor-pointer items-center border border-rule bg-panel px-3 text-sm" style={{ borderRadius: 2 }}>Legend</summary>
+      <summary className="mr-auto flex h-11 w-fit cursor-pointer items-center border border-rule bg-panel px-3 text-sm" style={{ borderRadius: 2 }}>Legend</summary>
       <div className="mt-1"><Legend /></div>
     </details>
   );
